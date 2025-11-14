@@ -1,0 +1,55 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.venv/
+env/
+venv/
+
+# OS / Editor trash
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+
+# Model & training artifacts
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+checkpoints/
+*/checkpoints/
+
+# Logs & outputs
+*.log
+logs/
+*/logs/
+beit3_logs/
+siglip2_output/
+rank_fusion_output/
+
+# Tensorboard
+**/events.out.tfevents.*
+
+# Heavy ML indexes
+*.faiss
+*.pkl
+
+# Dataset caches
+data/
+dataset/
+datasets/
+
+# Generated evaluation files
+*.jsonl
+*.csv
+*.spm
+
+# Shell & batch (optional)
+*.bat
+
+# Large pretrained configs (if regenerated)
+beit3_ckpt/
