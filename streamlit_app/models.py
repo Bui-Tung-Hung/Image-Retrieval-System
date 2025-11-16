@@ -11,12 +11,8 @@ import os
 # Add parent directory to path for BEiT3 imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'beit3'))
 
-# Import modeling_finetune to register BEiT3 models with timm
-import modeling_finetune
-
 from config import (
     OPENCLIP_MODEL_PATH,
-    BEIT3_MODEL_PATH,
     BEIT3_TOKENIZER_PATH,
     BEIT3_CHECKPOINT_PATH,
     DEVICE
