@@ -14,7 +14,7 @@ UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 OPENCLIP_MODEL_PATH = "d:/Projects/doan/open_clip/checkpoints/epoch_15.pt"
 BEIT3_MODEL_PATH = "d:/Projects/doan/beit3/beit3_base_itc_patch16_224.pth"
 BEIT3_TOKENIZER_PATH = "d:/Projects/doan/beit3/beit3.spm"
-BEIT3_CHECKPOINT_PATH = r"C:\Users\LAPTOP\Downloads\BEiT3\ckpt\checkpoint-best.pth"
+BEIT3_CHECKPOINT_PATH = "d:/Projects/doan/beit3/ckpt/checkpoint-best.pth"
 
 # Model dimensions
 OPENCLIP_DIM = 512
