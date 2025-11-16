@@ -4,15 +4,12 @@ Main app with search, encoding, and management features
 """
 import streamlit as st
 import os
-import shutil
-from typing import List
 
 # Import modules
 from config import (
     OPENCLIP_DIM,
     BEIT3_DIM,
     DEFAULT_TOP_K,
-    DEFAULT_FUSION_WEIGHT,
     GRID_COLUMNS,
     UPLOADS_DIR
 )
@@ -75,13 +72,17 @@ def tab_search():
 
 
     with col1:
-#########################################################################################################################################################################################################################################################################
         query = st.text_input(
             "Enter search query:",
-            placeholder="Example: a cat sitting on a chair",
+            placeholder="Ví dụ: Một con chó đang ngậm quả bóng nằm trên cỏ",
             key="search_query"
         )
-#########################################################################################################################################################################################################################################################################
+        query = query.lower().strip()
+
+        #kiểm tra xem câu query có chữ số không (ví dụ: "1", "2", "3") nếu có thì chuyển các chữ số về chữ viết tay ("một", "hai", "ba")
+        digit_to_word = {"0": "không", "1": "một", "2": "hai", "3": "ba", "4": "bốn", "5": "năm", "6": "sáu", "7": "bảy", "8": "tám", "9": "chín"}
+        for digit, word in digit_to_word.items(): query = query.replace(digit, word)
+
     with col2:
         top_k = st.number_input(
             "Top K:",
@@ -128,7 +129,7 @@ def tab_search():
 
 def tab_encode():
     """Tab 2: Encode Images"""
-    st.header("📂 Encode Images")
+    st.header("📂 Encode Images Place")
     
     # Section 1: Encode Folder
     st.subheader("1. Encode Folder")
@@ -279,53 +280,109 @@ def tab_manage():
     # Select index to manage
     index_to_manage = st.selectbox(
         "Select Index:",
-        options=["OpenCLIP", "BEiT3"],
+        options=["OpenCLIP", "BEiT3", "Both"],
         key="manage_index_select"
     )
     
-    model_name = index_to_manage.lower()
-    faiss_manager = st.session_state.faiss_managers[model_name]
-    
-    # Get all images
-    images = faiss_manager.get_all_images()
-    
     st.markdown("---")
     
-    # Render image selector
-    selected_uuids = render_image_selector(images, model_name)
-    
-    st.markdown("---")
-    
-    # Delete button
-    col1, col2, col3 = st.columns([1, 1, 2])
-    
-    with col1:
-        delete_button = st.button(
-            "🗑️ Delete Selected",
-            type="primary",
-            disabled=(len(selected_uuids) == 0)
-        )
-    
-    with col2:
-        if len(selected_uuids) > 0:
-            st.metric("Selected", len(selected_uuids))
-    
-    if delete_button and len(selected_uuids) > 0:
-        # Confirmation dialog
-        confirm = st.checkbox(
-            f"⚠️ Confirm deletion of {len(selected_uuids)} images?",
-            key="confirm_delete"
-        )
+    if index_to_manage == "Both":
+        # Handle both indices
+        openclip_manager = st.session_state.faiss_managers['openclip']
+        beit3_manager = st.session_state.faiss_managers['beit3']
         
-        if confirm:
-            if st.button("✅ Yes, Delete", type="secondary"):
-                with st.spinner("Deleting..."):
-                    try:
-                        faiss_manager.remove_vectors(selected_uuids)
-                        st.success(f"✅ Deleted {len(selected_uuids)} images")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error deleting images: {str(e)}")
+        # Get images from both
+        openclip_images = openclip_manager.get_all_images()
+        beit3_images = beit3_manager.get_all_images()
+        
+        # Render OpenCLIP section
+        st.subheader("📊 OpenCLIP Images")
+        selected_openclip = render_image_selector(openclip_images, 'openclip')
+        
+        st.markdown("---")
+        
+        # Render BEiT3 section
+        st.subheader("📊 BEiT3 Images")
+        selected_beit3 = render_image_selector(beit3_images, 'beit3')
+        
+        st.markdown("---")
+        
+        # Action Bar for both
+        total_selected = len(selected_openclip) + len(selected_beit3)
+        
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            delete_button = st.button(
+                "🗑️ Delete Selected",
+                type="primary",
+                disabled=(total_selected == 0)
+            )
+        
+        with col2:
+            if total_selected > 0:
+                st.metric("Selected", total_selected)
+                st.caption(f"CLIP: {len(selected_openclip)} | BEiT3: {len(selected_beit3)}")
+        
+        # Delete logic for both
+        if delete_button and total_selected > 0:
+            with st.spinner("Deleting..."):
+                try:
+                    deleted_count = 0
+                    
+                    if len(selected_openclip) > 0:
+                        openclip_manager.remove_vectors(selected_openclip)
+                        deleted_count += len(selected_openclip)
+                        st.session_state['manage_selected_set_openclip'] = set()
+                    
+                    if len(selected_beit3) > 0:
+                        beit3_manager.remove_vectors(selected_beit3)
+                        deleted_count += len(selected_beit3)
+                        st.session_state['manage_selected_set_beit3'] = set()
+                    
+                    st.success(f"✅ Deleted {deleted_count} images")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error deleting images: {str(e)}")
+    
+    else:
+        # Handle single index (OpenCLIP or BEiT3)
+        model_name = index_to_manage.lower()
+        faiss_manager = st.session_state.faiss_managers[model_name]
+        
+        # Get all images
+        images = faiss_manager.get_all_images()
+        
+        # Render image selector (with pagination)
+        selected_uuids = render_image_selector(images, model_name)
+        
+        st.markdown("---")
+        
+        # Action Bar with delete button
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            delete_button = st.button(
+                "🗑️ Delete Selected",
+                type="primary",
+                disabled=(len(selected_uuids) == 0)
+            )
+        
+        with col2:
+            if len(selected_uuids) > 0:
+                st.metric("Selected", len(selected_uuids))
+        
+        # Delete logic - single button with confirmation
+        if delete_button and len(selected_uuids) > 0:
+            with st.spinner("Deleting..."):
+                try:
+                    faiss_manager.remove_vectors(selected_uuids)
+                    st.success(f"✅ Deleted {len(selected_uuids)} images")
+                    # Clear selection set after successful delete
+                    st.session_state[f"manage_selected_set_{model_name}"] = set()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error deleting images: {str(e)}")
 
 
 def tab_settings():
