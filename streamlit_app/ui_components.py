@@ -39,7 +39,7 @@ def render_image_grid(results: List[Dict], cols: int = 4):
                             st.image(image, width='stretch')
                             
                             # Display metadata
-                            st.caption(f"**Score:** {result['score']:.4f}")
+                            st.caption(f"**Score:** {float(result['score'])*100:.2f} %")
                             st.caption(f"**File:** {os.path.basename(result['path'])}")
                         else:
                             st.error(f"Image not found: {result['path']}")
@@ -47,13 +47,14 @@ def render_image_grid(results: List[Dict], cols: int = 4):
                         st.error(f"Error loading image: {e}")
 
 
-def render_image_selector(images: List[Dict], model_name: str) -> List[str]:
+def render_image_selector(images: List[Dict], model_name: str, items_per_page: int = 50) -> List[str]:
     """
-    Render images with checkboxes for selection
+    Render images with checkboxes for selection (with pagination)
     
     Args:
         images: list of dicts with 'uuid', 'path', 'added_at'
         model_name: name of the model (for unique keys)
+        items_per_page: number of images per page
     
     Returns:
         list of selected UUIDs
@@ -62,10 +63,27 @@ def render_image_selector(images: List[Dict], model_name: str) -> List[str]:
         st.info("No images in index")
         return []
     
+    # Initialize session state for pagination
+    page_key = f"manage_current_page_{model_name}"
+    selected_key = f"manage_selected_set_{model_name}"
+    filter_key = f"last_filter_{model_name}"
+    
+    if page_key not in st.session_state:
+        st.session_state[page_key] = 1
+    if selected_key not in st.session_state:
+        st.session_state[selected_key] = set()
+    if filter_key not in st.session_state:
+        st.session_state[filter_key] = ""
+    
     st.write(f"**Total images:** {len(images)}")
     
     # Search/filter box
     filter_text = st.text_input("Filter by path:", key=f"filter_{model_name}")
+    
+    # Reset page if filter changed
+    if filter_text != st.session_state[filter_key]:
+        st.session_state[page_key] = 1
+        st.session_state[filter_key] = filter_text
     
     # Filter images if search text provided
     if filter_text:
@@ -80,16 +98,51 @@ def render_image_selector(images: List[Dict], model_name: str) -> List[str]:
         st.warning("No images match the filter")
         return []
     
-    st.write(f"**Showing:** {len(filtered_images)} images")
+    # Calculate pagination
+    import math
+    total_pages = math.ceil(len(filtered_images) / items_per_page)
+    current_page = st.session_state[page_key]
     
-    # Select all checkbox
-    select_all = st.checkbox("Select All", key=f"select_all_{model_name}")
+    # Adjust page if out of bounds
+    if current_page > total_pages:
+        current_page = total_pages
+        st.session_state[page_key] = current_page
     
-    selected_uuids = []
+    start_idx = (current_page - 1) * items_per_page
+    end_idx = min(start_idx + items_per_page, len(filtered_images))
+    page_images = filtered_images[start_idx:end_idx]
+    
+    st.write(f"**Showing:** {start_idx + 1}-{end_idx} of {len(filtered_images)} images")
+    
+    # Pagination controls
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        if st.button("⬅️ Previous", disabled=(current_page == 1), key=f"prev_{model_name}"):
+            st.session_state[page_key] -= 1
+            st.rerun()
+    
+    with col2:
+        st.write(f"**Page {current_page} / {total_pages}**")
+    
+    with col3:
+        if st.button("Next ➡️", disabled=(current_page == total_pages), key=f"next_{model_name}"):
+            st.session_state[page_key] += 1
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # Select all checkbox (current page only)
+    select_all = st.checkbox("Select All (on this page)", key=f"select_all_{model_name}")
+    
+    if select_all:
+        # Add all UUIDs from current page
+        for img in page_images:
+            st.session_state[selected_key].add(img['uuid'])
     
     # Display in grid with checkboxes
     cols = 4
-    num_rows = (len(filtered_images) + cols - 1) // cols
+    num_rows = (len(page_images) + cols - 1) // cols
     
     for row in range(num_rows):
         columns = st.columns(cols)
@@ -97,24 +150,26 @@ def render_image_selector(images: List[Dict], model_name: str) -> List[str]:
         for col_idx in range(cols):
             img_idx = row * cols + col_idx
             
-            if img_idx < len(filtered_images):
-                img = filtered_images[img_idx]
+            if img_idx < len(page_images):
+                img = page_images[img_idx]
                 
                 with columns[col_idx]:
                     try:
                         if os.path.exists(img['path']):
-                            image = Image.open(img['path'])
-                            st.image(image, width='stretch')
+                            st.image(img['path'], use_container_width=True)
                             
                             # Checkbox for selection
                             is_selected = st.checkbox(
                                 f"Select",
-                                value=select_all,
+                                value=(img['uuid'] in st.session_state[selected_key]),
                                 key=f"select_{model_name}_{img['uuid']}"
                             )
                             
+                            # Update selection set
                             if is_selected:
-                                selected_uuids.append(img['uuid'])
+                                st.session_state[selected_key].add(img['uuid'])
+                            else:
+                                st.session_state[selected_key].discard(img['uuid'])
                             
                             # Display metadata
                             st.caption(f"**Added:** {img['added_at'][:10]}")
@@ -124,7 +179,7 @@ def render_image_selector(images: List[Dict], model_name: str) -> List[str]:
                     except Exception as e:
                         st.error(f"Error: {e}")
     
-    return selected_uuids
+    return list(st.session_state[selected_key])
 
 
 def render_model_selector():
