@@ -521,11 +521,10 @@ def main():
     render_index_status(st.session_state.faiss_managers)
     
     # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "🔍 Search",
         "📂 Encode Images",
-        "🗑️ Manage Images",
-        "⚙️ Settings"
+        "🗑️ Manage Images"
     ])
     
     with tab1:
@@ -536,9 +535,6 @@ def main():
     
     with tab3:
         tab_manage()
-    
-    with tab4:
-        tab_settings()
 
 
 if __name__ == "__main__":
