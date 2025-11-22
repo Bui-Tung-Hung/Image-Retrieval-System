@@ -47,7 +47,7 @@ def render_image_grid(results: List[Dict], cols: int = 4):
                         st.error(f"Error loading image: {e}")
 
 
-def render_image_selector(images: List[Dict], model_name: str, items_per_page: int = 50) -> List[str]:
+def render_image_selector(images: List[Dict], model_name: str, items_per_page: int = 30) -> List[str]:
     """
     Render images with checkboxes for selection (with pagination)
     
@@ -132,13 +132,29 @@ def render_image_selector(images: List[Dict], model_name: str, items_per_page: i
     
     st.markdown("---")
     
-    # Select all checkbox (current page only)
-    select_all = st.checkbox("Select All (on this page)", key=f"select_all_{model_name}")
+    # Callback function for Select All checkbox
+    def handle_select_all_change():
+        """Callback when Select All checkbox changes"""
+        checkbox_state = st.session_state.get(f"select_all_checkbox_{model_name}", False)
+        if checkbox_state:
+            # Add all page UUIDs
+            for img in page_images:
+                st.session_state[selected_key].add(img['uuid'])
+        else:
+            # Remove all page UUIDs
+            for img in page_images:
+                st.session_state[selected_key].discard(img['uuid'])
     
-    if select_all:
-        # Add all UUIDs from current page
-        for img in page_images:
-            st.session_state[selected_key].add(img['uuid'])
+    # Calculate if all images on current page are selected
+    all_selected = all(img['uuid'] in st.session_state[selected_key] for img in page_images)
+    
+    # Select All checkbox with on_change callback
+    st.checkbox(
+        "✅ Select All (on this page)",
+        value=all_selected,
+        key=f"select_all_checkbox_{model_name}",
+        on_change=handle_select_all_change
+    )
     
     # Display in grid with checkboxes
     cols = 4
@@ -156,20 +172,28 @@ def render_image_selector(images: List[Dict], model_name: str, items_per_page: i
                 with columns[col_idx]:
                     try:
                         if os.path.exists(img['path']):
-                            st.image(img['path'], use_container_width=True)
+                            st.image(img['path'],
+                                    width='stretch',
+                                    #use_container_width=True
+)
                             
-                            # Checkbox for selection
-                            is_selected = st.checkbox(
+                            # Callback for individual checkbox
+                            def make_checkbox_callback(uuid):
+                                def callback():
+                                    checkbox_key = f"select_{model_name}_{uuid}"
+                                    if st.session_state.get(checkbox_key, False):
+                                        st.session_state[selected_key].add(uuid)
+                                    else:
+                                        st.session_state[selected_key].discard(uuid)
+                                return callback
+                            
+                            # Checkbox for selection (read-only value, update via callback)
+                            st.checkbox(
                                 f"Select",
                                 value=(img['uuid'] in st.session_state[selected_key]),
-                                key=f"select_{model_name}_{img['uuid']}"
+                                key=f"select_{model_name}_{img['uuid']}",
+                                on_change=make_checkbox_callback(img['uuid'])
                             )
-                            
-                            # Update selection set
-                            if is_selected:
-                                st.session_state[selected_key].add(img['uuid'])
-                            else:
-                                st.session_state[selected_key].discard(img['uuid'])
                             
                             # Display metadata
                             st.caption(f"**Added:** {img['added_at'][:10]}")
@@ -205,7 +229,7 @@ def render_model_selector():
             "Fusion Weight (α)",
             min_value=0.0,
             max_value=1.0,
-            value=0.5,
+            value=0.42,
             step=0.01,
             help="0.0 = all BEiT3, 1.0 = all OpenCLIP",
             key="fusion_weight_slider"
