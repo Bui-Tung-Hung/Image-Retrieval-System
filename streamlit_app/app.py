@@ -415,7 +415,7 @@ def tab_manage():
     
     # Show confirmation dialog if flag is set
     if st.session_state['show_delete_all_confirm']:
-        st.error("⚠️⚠️⚠️ WARNING: This will delete ALL images from BOTH OpenCLIP and BEiT3 indices!")
+        st.error("WARNING: This will delete ALL images from BOTH OpenCLIP and BEiT3 indices!")
         st.write("**Are you absolutely sure?**")
         
         col1, col2, col3 = st.columns([1, 1, 2])
