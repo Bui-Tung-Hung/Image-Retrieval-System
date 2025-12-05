@@ -39,7 +39,8 @@ def render_image_grid(results: List[Dict], cols: int = 4):
                             st.image(image, width='stretch')
                             
                             # Display metadata
-                            st.caption(f"**Score:** {float(result['score'])*100:.2f} %")
+                            rank = result_idx + 1
+                            st.caption(f"**Top #{rank}**")
                             st.caption(f"**File:** {os.path.basename(result['path'])}")
                         else:
                             st.error(f"Image not found: {result['path']}")
