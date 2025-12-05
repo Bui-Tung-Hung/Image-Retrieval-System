@@ -4,7 +4,7 @@ Main app with search, encoding, and management features
 """
 import streamlit as st
 import os
-
+import time
 # Import modules
 from config import (
     OPENCLIP_DIM,
@@ -139,7 +139,8 @@ def tab_encode():
     with col1:
         folder_path = st.text_input(
             "Folder path:",
-            placeholder="D:/images/my_dataset",
+            placeholder="D:/Projects/kaggle/test",
+            value="D:/Projects/kaggle/test",
             key="encode_folder_path"
         )
     
@@ -177,7 +178,6 @@ def tab_encode():
         for model in models_to_encode:
             with st.spinner(f"Encoding with {model.upper()}..."):
                 try:
-                    # Encode images
                     vectors, image_paths = encoder.encode_folder(folder_path, model)
                     
                     if len(vectors) == 0:
@@ -196,6 +196,8 @@ def tab_encode():
         if total_added > 0:
             st.balloons()
             st.success(f"🎉 Total images added: {total_added}")
+            import time
+            time.sleep(2)
             st.rerun()  # Refresh UI to update sidebar
     
     st.markdown("---")
@@ -263,13 +265,14 @@ def tab_encode():
                     total_added += num_added
                     
                     st.success(f"✅ {model.upper()}: Added {num_added} images")
-                
                 except Exception as e:
                     st.error(f"Error encoding with {model}: {str(e)}")
         
         if total_added > 0:
             st.balloons()
             st.success(f"🎉 Total images added: {total_added}")
+            import time
+            time.sleep(2)
             st.rerun()  # Refresh UI to update sidebar
 
 
@@ -334,11 +337,15 @@ def tab_manage():
                         openclip_manager.remove_vectors(selected_openclip)
                         deleted_count += len(selected_openclip)
                         st.session_state['manage_selected_set_openclip'] = set()
+                        # Clear rerun flag
+                        st.session_state['need_rerun_openclip'] = False
                     
                     if len(selected_beit3) > 0:
                         beit3_manager.remove_vectors(selected_beit3)
                         deleted_count += len(selected_beit3)
                         st.session_state['manage_selected_set_beit3'] = set()
+                        # Clear rerun flag
+                        st.session_state['need_rerun_beit3'] = False
                     
                     st.success(f"✅ Deleted {deleted_count} images")
                     st.rerun()
@@ -380,9 +387,102 @@ def tab_manage():
                     st.success(f"✅ Deleted {len(selected_uuids)} images")
                     # Clear selection set after successful delete
                     st.session_state[f"manage_selected_set_{model_name}"] = set()
+                    # Clear rerun flag
+                    st.session_state[f"need_rerun_{model_name}"] = False
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error deleting images: {str(e)}")
+    
+    # Danger Zone - Delete Everything
+    st.markdown("---")
+    st.subheader("⚠️ Danger Zone")
+    st.warning("⚠️ Delete everything will remove ALL images from ALL indices permanently!")
+    
+    # Initialize confirmation state
+    if 'show_delete_all_confirm' not in st.session_state:
+        st.session_state['show_delete_all_confirm'] = False
+    
+    delete_all_button = st.button(
+        "🗑️ DELETE EVERYTHING",
+        type="secondary",
+        key="delete_everything_main"
+    )
+    
+    # Set confirmation flag when button clicked
+    if delete_all_button:
+        st.session_state['show_delete_all_confirm'] = True
+        st.rerun()
+    
+    # Show confirmation dialog if flag is set
+    if st.session_state['show_delete_all_confirm']:
+        st.error("⚠️⚠️⚠️ WARNING: This will delete ALL images from BOTH OpenCLIP and BEiT3 indices!")
+        st.write("**Are you absolutely sure?**")
+        
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            confirm_yes = st.button(
+                "✅ Yes, Delete Everything",
+                type="primary",
+                key="confirm_delete_all_yes"
+            )
+        
+        with col2:
+            confirm_no = st.button(
+                "❌ No, Cancel",
+                type="secondary",
+                key="confirm_delete_all_no"
+            )
+        
+        if confirm_yes:
+            # Reset confirmation flag
+            st.session_state['show_delete_all_confirm'] = False
+            
+            with st.spinner("Deleting all data..."):
+                try:
+                    # Get both managers
+                    openclip_manager = st.session_state.faiss_managers['openclip']
+                    beit3_manager = st.session_state.faiss_managers['beit3']
+                    
+                    # Reset indices
+                    openclip_manager.index.reset()
+                    beit3_manager.index.reset()
+                    
+                    # Clear metadata
+                    openclip_manager.metadata['openclip'] = {
+                        'images': [],
+                        'uuid_to_index': {},
+                        'path_to_uuid': {},
+                        'total_images': 0
+                    }
+                    beit3_manager.metadata['beit3'] = {
+                        'images': [],
+                        'uuid_to_index': {},
+                        'path_to_uuid': {},
+                        'total_images': 0
+                    }
+                    
+                    # Save empty state
+                    openclip_manager.save_index()
+                    beit3_manager.save_index()
+                    
+                    # Clear session state selections
+                    st.session_state['manage_selected_set_openclip'] = set()
+                    st.session_state['manage_selected_set_beit3'] = set()
+                    st.session_state['need_rerun_openclip'] = False
+                    st.session_state['need_rerun_beit3'] = False
+                    
+                    st.success("✅ Successfully deleted everything!")
+                    st.balloons()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error deleting: {str(e)}")
+        
+        elif confirm_no:
+            # Reset confirmation flag
+            st.session_state['show_delete_all_confirm'] = False
+            st.info("Deletion cancelled.")
+            st.rerun()
 
 
 def tab_settings():
@@ -524,7 +624,8 @@ def main():
     tab1, tab2, tab3 = st.tabs([
         "🔍 Search",
         "📂 Encode Images",
-        "🗑️ Manage Images"
+        "🗑️ Manage Images",
+        #"⚙️ Settings"
     ])
     
     with tab1:
@@ -535,6 +636,9 @@ def main():
     
     with tab3:
         tab_manage()
+    
+    # with tab4:
+    #     tab_settings()
 
 
 if __name__ == "__main__":
