@@ -7,10 +7,10 @@ import open_clip
 from PIL import Image
 import sys
 import os
-import modeling_finetune
+
 # Add parent directory to path for BEiT3 imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'beit3'))
-
+import modeling_finetune
 from config import (
     OPENCLIP_MODEL_PATH,
     BEIT3_TOKENIZER_PATH,
