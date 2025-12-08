@@ -1,16 +1,6 @@
 # Image Retrieval System - Streamlit UI
 
-A powerful image retrieval application using OpenCLIP and BEiT3 models with FAISS indexing and rank fusion capabilities.
-
-## Features
-
-- 🔍 **Text-to-Image Search**: Search for images using natural language queries
-- 🤖 **Multiple Models**: Use OpenCLIP, BEiT3, or Fusion of both
-- 📂 **Batch Encoding**: Encode entire folders or individual files
-- 🗑️ **Image Management**: View and delete images from indices
-- 🔄 **Incremental Updates**: Add images without rebuilding entire index
-- 💾 **Auto-Save**: All changes are saved immediately
-- 🎯 **UUID-Based**: Robust image tracking using UUIDs
+An image retrieval application using OpenCLIP and BEiT3 models with FAISS indexing and rank fusion capabilities.
 
 ## Installation
 
