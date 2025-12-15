@@ -7,6 +7,51 @@ import os
 from typing import List, Dict
 
 
+def center_crop_to_square(image: Image.Image, target_size: int = 400) -> Image.Image:
+    """
+    Center crop image to square or pad with black border if too small
+    
+    Args:
+        image: PIL Image object
+        target_size: desired square size in pixels (default 400)
+    
+    Returns:
+        Square PIL Image object (target_size x target_size)
+    """
+    width, height = image.size
+    min_dim = min(width, height)
+    
+    # Case A: Image can be cropped to square
+    if min_dim >= target_size:
+        # Center crop to square
+        left = (width - min_dim) // 2
+        top = (height - min_dim) // 2
+        right = left + min_dim
+        bottom = top + min_dim
+        
+        square_img = image.crop((left, top, right, bottom))
+        
+        # Resize to target size if needed
+        if min_dim != target_size:
+            square_img = square_img.resize((target_size, target_size), Image.LANCZOS)
+        
+        return square_img
+    
+    # Case B: Image is smaller than target size - pad with black border
+    else:
+        # Create black background
+        new_img = Image.new('RGB', (target_size, target_size), (0, 0, 0))
+        
+        # Calculate paste position (center)
+        paste_x = (target_size - width) // 2
+        paste_y = (target_size - height) // 2
+        
+        # Paste original image on black background
+        new_img.paste(image, (paste_x, paste_y))
+        
+        return new_img
+
+
 def render_image_grid(results: List[Dict], cols: int = 4):
     """
     Render search results in a grid layout
@@ -36,12 +81,19 @@ def render_image_grid(results: List[Dict], cols: int = 4):
                         # Load and display image
                         if os.path.exists(result['path']):
                             image = Image.open(result['path'])
-                            st.image(image, width='stretch')
+                            
+                            # Create cropped version for display
+                            cropped_image = center_crop_to_square(image, 320)
+                            st.image(cropped_image, width="stretch")
                             
                             # Display metadata
                             rank = result_idx + 1
                             st.caption(f"**Top #{rank}**")
                             st.caption(f"**File:** {os.path.basename(result['path'])}")
+                            
+                            # Expander to view full image
+                            with st.expander(" Xem ảnh đầy đủ"):
+                                st.image(image, width="stretch")
                         else:
                             st.error(f"Image not found: {result['path']}")
                     except Exception as e:
